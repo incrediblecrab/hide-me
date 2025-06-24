@@ -176,18 +176,39 @@ export class HiddenItemsProvider implements vscode.TreeDataProvider<HiddenItem>,
     }
 
     async unhideItem(item: HiddenItem): Promise<void> {
+        // First remove from storage
         await this.storage.removeHiddenItem(item.path);
         
+        // Then update the file exclusions
         if (this.fileHider) {
-            await this.fileHider.showHiddenFile(item.path);
             const hiddenItems = await this.storage.loadHiddenItems();
             await this.fileHider.updateHiddenFiles(hiddenItems);
         }
         
+        // Refresh the hidden items tree
         this.refresh();
         
-        // Force refresh the file explorer
+        // Wait a bit for VS Code to process the config changes
+        await new Promise(resolve => setTimeout(resolve, 200));
+        
+        // Force refresh the file explorer to ensure UI updates
         await vscode.commands.executeCommand('workbench.files.action.refreshFilesExplorer');
+        
+        // If it's still appearing grayed out, try to touch the workspace config
+        const workspaceFolder = vscode.workspace.getWorkspaceFolder(vscode.Uri.file(item.path));
+        if (workspaceFolder) {
+            // Force a complete refresh by touching the workspace config
+            const config = vscode.workspace.getConfiguration('files', workspaceFolder.uri);
+            const currentExclude = config.get<Record<string, boolean>>('exclude') || {};
+            
+            // Ensure the path is completely removed
+            const relativePath = path.relative(workspaceFolder.uri.fsPath, item.path);
+            delete currentExclude[relativePath];
+            delete currentExclude[`${relativePath}/**`];
+            
+            // Force update even if no changes to trigger refresh
+            await config.update('exclude', currentExclude, vscode.ConfigurationTarget.Workspace);
+        }
         
         vscode.window.showInformationMessage(`Unhidden: ${item.name}`);
     }

@@ -2,7 +2,7 @@
   "name": "hide-me",
   "displayName": "Hide Me",
   "description": "Hide files and folders to reduce visual clutter in VS Code Explorer",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "publisher": "maxs-lab-of-things",
   "author": {
     "name": "Max Marquardt",
