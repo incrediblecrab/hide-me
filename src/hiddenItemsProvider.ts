@@ -4,80 +4,31 @@ import { HiddenItem } from './types';
 import { HiddenItemsStorage } from './storage';
 import { FileHider } from './fileHider';
 
-export class HiddenItemsProvider implements vscode.TreeDataProvider<HiddenItem>, vscode.TreeDragAndDropController<HiddenItem> {
+export class HiddenItemsProvider implements vscode.TreeDataProvider<HiddenItem> {
     private _onDidChangeTreeData: vscode.EventEmitter<HiddenItem | undefined | null | void> = new vscode.EventEmitter<HiddenItem | undefined | null | void>();
     readonly onDidChangeTreeData: vscode.Event<HiddenItem | undefined | null | void> = this._onDidChangeTreeData.event;
-
-    dropMimeTypes = ['application/vnd.code.tree.hiddenItems'];
-    dragMimeTypes = ['text/uri-list'];
-
-    // Performance caching
-    private treeCache: Map<string, vscode.TreeItem> = new Map();
-    private lastDataHash: string = '';
-    private childrenCache: Map<string, HiddenItem[]> = new Map();
 
     constructor(private storage: HiddenItemsStorage, private fileHider?: FileHider) {}
 
     refresh(): void {
-        // Only fire change event if data actually changed
-        const currentHash = this.calculateDataHash();
-        if (currentHash !== this.lastDataHash) {
-            this.lastDataHash = currentHash;
-            this.clearCaches();
-            this._onDidChangeTreeData.fire();
-        }
-    }
-
-    private clearCaches(): void {
-        this.treeCache.clear();
-        this.childrenCache.clear();
-    }
-
-    private calculateDataHash(): string {
-        // Simple hash of current hidden items for change detection
-        const crypto = require('crypto');
-        const cachedItems = this.storage.getCachedItems();
-        return crypto.createHash('md5')
-            .update(JSON.stringify(cachedItems.map(item => item.path)))
-            .digest('hex');
+        this._onDidChangeTreeData.fire();
     }
 
     getTreeItem(element: HiddenItem): vscode.TreeItem {
-        const cacheKey = `${element.path}:${element.type}`;
-        
-        // Return cached item if available
-        if (this.treeCache.has(cacheKey)) {
-            return this.treeCache.get(cacheKey)!;
-        }
-        
-        // Create new tree item
-        const treeItem = this.createTreeItem(element);
-        
-        // Cache with size limit
-        if (this.treeCache.size > 1000) {
-            // Clear cache when it gets too large
-            this.treeCache.clear();
-        }
-        
-        this.treeCache.set(cacheKey, treeItem);
-        return treeItem;
+        return this.createTreeItem(element);
     }
 
     private createTreeItem(element: HiddenItem): vscode.TreeItem {
         let collapsibleState = vscode.TreeItemCollapsibleState.None;
         
         if (element.type === 'folder') {
-            // Only make folders collapsible if they have children
             collapsibleState = (element.children && element.children.length > 0) 
                 ? vscode.TreeItemCollapsibleState.Collapsed 
                 : vscode.TreeItemCollapsibleState.None;
         }
         
         const item = new vscode.TreeItem(element.name, collapsibleState);
-
-        item.contextValue = `hidden${element.type.charAt(0).toUpperCase() + element.type.slice(1)}`;
         
-        // Lazy load tooltip and description
         const workspaceFolder = vscode.workspace.getWorkspaceFolder(vscode.Uri.file(element.path));
         if (workspaceFolder) {
             const relativePath = path.relative(workspaceFolder.uri.fsPath, element.path);
@@ -85,89 +36,57 @@ export class HiddenItemsProvider implements vscode.TreeDataProvider<HiddenItem>,
             item.description = path.dirname(relativePath) === '.' ? '' : path.dirname(relativePath);
         }
 
-        // Lazy load icons
-        item.iconPath = this.getIconPath(element.type);
-
-        item.resourceUri = vscode.Uri.file(element.path);
-        
-        // Enable dragging for this tree item and set context for menus
-        item.contextValue = 'hiddenItem';
-        
-        // Add command to open file when clicked (only for files, not folders)
-        if (element.type === 'file') {
-            item.command = {
-                command: 'hideMe.openFile',
-                title: 'Open File',
-                arguments: [element]
-            };
+        // Use VS Code's default file type icons
+        if (element.type === 'folder') {
+            item.iconPath = new vscode.ThemeIcon('folder');
+        } else {
+            // Let VS Code automatically determine the file icon based on file extension
+            item.resourceUri = vscode.Uri.file(element.path);
         }
+        
+        const canUnhide = this.canUnhideItem(element);
+        item.contextValue = canUnhide ? 'hiddenItem' : 'nestedHiddenItem';
 
         return item;
     }
 
-    private getIconPath(type: string): vscode.ThemeIcon {
-        return type === 'folder' ? new vscode.ThemeIcon('folder') : new vscode.ThemeIcon('file');
-    }
 
     async getChildren(element?: HiddenItem): Promise<HiddenItem[]> {
         if (!element) {
-            // Root level - return cached items
             return this.storage.getCachedItems();
         }
         
-        // Check cache first
-        const cacheKey = element.path;
-        if (this.childrenCache.has(cacheKey)) {
-            return this.childrenCache.get(cacheKey)!;
-        }
-        
-        // If it's a folder, show its children
         if (element.type === 'folder' && element.children) {
-            const childItems = await this.loadChildrenBatch(element);
-            
-            // Cache the result
-            this.childrenCache.set(cacheKey, childItems);
-            
-            return childItems;
+            return this.loadChildren(element);
         }
         
         return [];
     }
 
-    private async loadChildrenBatch(element: HiddenItem): Promise<HiddenItem[]> {
+    private async loadChildren(element: HiddenItem): Promise<HiddenItem[]> {
         const childItems: HiddenItem[] = [];
-        const batchSize = 50; // Process children in batches
         
         if (!element.children) {
             return childItems;
         }
         
-        for (let i = 0; i < element.children.length; i += batchSize) {
-            const batch = element.children.slice(i, i + batchSize);
-            const batchPromises = batch.map(async (childPath) => {
-                try {
-                    const stats = await vscode.workspace.fs.stat(vscode.Uri.file(childPath));
-                    const isDirectory = stats.type === vscode.FileType.Directory;
-                    
-                    return {
-                        path: childPath,
-                        name: path.basename(childPath),
-                        type: isDirectory ? 'folder' : 'file',
-                        workspaceFolder: element.workspaceFolder
-                    } as HiddenItem;
-                } catch (error) {
-                    // File might have been deleted, return null to filter out
-                    return null;
-                }
-            });
-            
-            const batchResults = await Promise.all(batchPromises);
-            const validItems = batchResults.filter(item => item !== null) as HiddenItem[];
-            childItems.push(...validItems);
+        for (const childPath of element.children) {
+            try {
+                const stats = await vscode.workspace.fs.stat(vscode.Uri.file(childPath));
+                const isDirectory = stats.type === vscode.FileType.Directory;
+                
+                childItems.push({
+                    path: childPath,
+                    name: path.basename(childPath),
+                    type: isDirectory ? 'folder' : 'file',
+                    workspaceFolder: element.workspaceFolder
+                } as HiddenItem);
+            } catch (error) {
+                // File might have been deleted, skip it
+            }
         }
         
         return childItems.sort((a, b) => {
-            // Folders first, then files, alphabetically
             if (a.type !== b.type) {
                 return a.type === 'folder' ? -1 : 1;
             }
@@ -176,82 +95,59 @@ export class HiddenItemsProvider implements vscode.TreeDataProvider<HiddenItem>,
     }
 
     async unhideItem(item: HiddenItem): Promise<void> {
-        // First remove from storage
+        // Check if this item can be unhidden (must be a top-level hidden item)
+        if (!this.canUnhideItem(item)) {
+            vscode.window.showWarningMessage(`Cannot unhide '${item.name}'. Only parent folders can be unhidden.`);
+            return;
+        }
+
+        // Remove from storage (this will also remove all children if it's a folder)
         await this.storage.removeHiddenItem(item.path);
         
-        // Then update the file exclusions
+        // Remove all child items from storage as well
+        await this.removeChildItems(item.path);
+        
+        // Use the fileHider's showHiddenFile method for proper exclusion removal
         if (this.fileHider) {
-            const hiddenItems = await this.storage.loadHiddenItems();
-            await this.fileHider.updateHiddenFiles(hiddenItems);
+            await this.fileHider.showHiddenFile(item.path);
         }
         
         // Refresh the hidden items tree
         this.refresh();
         
-        // Wait a bit for VS Code to process the config changes
-        await new Promise(resolve => setTimeout(resolve, 200));
-        
-        // Force refresh the file explorer to ensure UI updates
+        // Force refresh the file explorer
         await vscode.commands.executeCommand('workbench.files.action.refreshFilesExplorer');
-        
-        // If it's still appearing grayed out, try to touch the workspace config
-        const workspaceFolder = vscode.workspace.getWorkspaceFolder(vscode.Uri.file(item.path));
-        if (workspaceFolder) {
-            // Force a complete refresh by touching the workspace config
-            const config = vscode.workspace.getConfiguration('files', workspaceFolder.uri);
-            const currentExclude = config.get<Record<string, boolean>>('exclude') || {};
-            
-            // Ensure the path is completely removed
-            const relativePath = path.relative(workspaceFolder.uri.fsPath, item.path);
-            delete currentExclude[relativePath];
-            delete currentExclude[`${relativePath}/**`];
-            
-            // Force update even if no changes to trigger refresh
-            await config.update('exclude', currentExclude, vscode.ConfigurationTarget.Workspace);
-        }
         
         vscode.window.showInformationMessage(`Unhidden: ${item.name}`);
     }
 
-
-    async handleDrag(source: HiddenItem[], treeDataTransfer: vscode.DataTransfer): Promise<void> {
-        const uris = source.map(item => vscode.Uri.file(item.path));
-        treeDataTransfer.set('text/uri-list', new vscode.DataTransferItem(uris.map(uri => uri.toString()).join('\r\n')));
-    }
-
-    async handleDrop(target: HiddenItem | undefined, sources: vscode.DataTransfer): Promise<void> {
-        const transferItem = sources.get('text/uri-list');
-        if (!transferItem) {
-            return;
-        }
-
-        const uriListStr = transferItem.value;
-        if (typeof uriListStr !== 'string') {
-            return;
-        }
-
-        const uris = uriListStr.split('\r\n').filter(line => line.trim().length > 0);
+    private canUnhideItem(item: HiddenItem): boolean {
+        // Load all hidden items to check hierarchy
+        const allHiddenItems = this.storage.getCachedItems();
         
-        for (const uriStr of uris) {
-            try {
-                const uri = vscode.Uri.parse(uriStr);
-                const hiddenItems = await this.storage.loadHiddenItems();
-                const isAlreadyHidden = this.storage.isPathHidden(uri.fsPath, hiddenItems);
-                
-                if (!isAlreadyHidden) {
-                    await this.storage.addHiddenItem(uri);
-                    
-                    if (this.fileHider) {
-                        const updatedHiddenItems = await this.storage.loadHiddenItems();
-                        await this.fileHider.updateHiddenFiles(updatedHiddenItems);
-                    }
-                }
-            } catch (error) {
-                console.error('Error handling dropped item:', error);
+        // Check if any parent directory is also hidden
+        for (const hiddenItem of allHiddenItems) {
+            if (hiddenItem.path !== item.path && 
+                hiddenItem.type === 'folder' && 
+                item.path.startsWith(hiddenItem.path + path.sep)) {
+                // This item is nested under another hidden folder
+                return false;
             }
         }
         
-        this.refresh();
-        vscode.window.showInformationMessage(`Added ${uris.length} items to hidden list.`);
+        return true;
     }
+
+    private async removeChildItems(parentPath: string): Promise<void> {
+        const allHiddenItems = await this.storage.loadHiddenItems();
+        const itemsToRemove = allHiddenItems.filter(item => 
+            item.path !== parentPath && item.path.startsWith(parentPath + path.sep)
+        );
+        
+        for (const childItem of itemsToRemove) {
+            await this.storage.removeHiddenItem(childItem.path);
+        }
+    }
+
+
 }

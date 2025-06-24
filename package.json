@@ -2,7 +2,7 @@
   "name": "hide-me",
   "displayName": "Hide Me",
   "description": "Hide files and folders to reduce visual clutter in VS Code Explorer",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "publisher": "maxs-lab-of-things",
   "author": {
     "name": "Max Marquardt",
@@ -38,17 +38,8 @@
         "icon": "$(eye)"
       },
       {
-        "command": "hideMe.resetAll",
-        "title": "Reset Hide Me (Show All)",
-        "icon": "$(eye)"
-      },
-      {
         "command": "hideMe.openFile",
         "title": "Open File"
-      },
-      {
-        "command": "hideMe.revealInExplorer",
-        "title": "Reveal in Explorer"
       },
       {
         "command": "hideMe.revealInOS",
@@ -61,6 +52,11 @@
       {
         "command": "hideMe.copyRelativePath",
         "title": "Copy Relative Path"
+      },
+      {
+        "command": "hideMe.unhideAll",
+        "title": "Unhide All",
+        "icon": "$(eye)"
       }
     ],
     "menus": {
@@ -73,7 +69,7 @@
       ],
       "view/title": [
         {
-          "command": "hideMe.resetAll",
+          "command": "hideMe.unhideAll",
           "when": "view == hiddenItems",
           "group": "navigation"
         }
@@ -81,27 +77,22 @@
       "view/item/context": [
         {
           "command": "hideMe.openFile",
-          "when": "view == hiddenItems && viewItem == hiddenItem",
+          "when": "view == hiddenItems && (viewItem == hiddenItem || viewItem == nestedHiddenItem)",
           "group": "navigation@1"
         },
         {
-          "command": "hideMe.revealInExplorer",
-          "when": "view == hiddenItems && viewItem == hiddenItem",
-          "group": "navigation@2"
-        },
-        {
           "command": "hideMe.revealInOS",
-          "when": "view == hiddenItems && viewItem == hiddenItem",
-          "group": "navigation@3"
+          "when": "view == hiddenItems && (viewItem == hiddenItem || viewItem == nestedHiddenItem)",
+          "group": "navigation@1"
         },
         {
           "command": "hideMe.copyPath",
-          "when": "view == hiddenItems && viewItem == hiddenItem",
+          "when": "view == hiddenItems && (viewItem == hiddenItem || viewItem == nestedHiddenItem)",
           "group": "5_cutcopypaste@1"
         },
         {
           "command": "hideMe.copyRelativePath",
-          "when": "view == hiddenItems && viewItem == hiddenItem",
+          "when": "view == hiddenItems && (viewItem == hiddenItem || viewItem == nestedHiddenItem)",
           "group": "5_cutcopypaste@2"
         },
         {

@@ -3,17 +3,11 @@ import * as path from 'path';
 import { HiddenItemsProvider } from './hiddenItemsProvider';
 import { HiddenItemsStorage } from './storage';
 import { FileHider } from './fileHider';
-import { FileDecorationProvider } from './fileDecorationProvider';
-import { DebouncedFileWatcher } from './debouncedFileWatcher';
-import { PerformanceMonitor } from './performanceMonitor';
 import { HiddenItem } from './types';
 
 let hiddenItemsProvider: HiddenItemsProvider;
 let storage: HiddenItemsStorage;
 let fileHider: FileHider;
-let decorationProvider: FileDecorationProvider;
-let debouncedWatcher: DebouncedFileWatcher;
-let performanceTimer: NodeJS.Timeout | undefined;
 let disposables: vscode.Disposable[] = [];
 
 export function activate(context: vscode.ExtensionContext) {
@@ -21,15 +15,13 @@ export function activate(context: vscode.ExtensionContext) {
 
     storage = new HiddenItemsStorage(context);
     fileHider = new FileHider();
+    fileHider.setStorage(storage);
     hiddenItemsProvider = new HiddenItemsProvider(storage, fileHider);
-    decorationProvider = new FileDecorationProvider(storage);
-    debouncedWatcher = new DebouncedFileWatcher(hiddenItemsProvider, storage);
 
     const treeView = vscode.window.createTreeView('hiddenItems', {
         treeDataProvider: hiddenItemsProvider,
         showCollapseAll: true,
-        canSelectMany: true,
-        dragAndDropController: hiddenItemsProvider
+        canSelectMany: true
     });
 
     // Commented out file decoration provider as it may interfere with file visibility
@@ -74,6 +66,9 @@ export function activate(context: vscode.ExtensionContext) {
             
             hiddenItemsProvider.refresh();
             
+            // Single file explorer refresh after all operations
+            await vscode.commands.executeCommand('workbench.files.action.refreshFilesExplorer');
+            
             const fileName = uri.fsPath.split('/').pop();
             vscode.window.showInformationMessage(`Hidden: ${fileName}`);
         } catch (error) {
@@ -88,170 +83,28 @@ export function activate(context: vscode.ExtensionContext) {
         }
     });
 
-    const resetAllCommand = vscode.commands.registerCommand('hideMe.resetAll', async () => {
-        const items = await storage.loadHiddenItems();
-        if (items.length === 0) {
-            vscode.window.showInformationMessage('No hidden items to show.');
-            return;
-        }
-
-        const answer = await vscode.window.showWarningMessage(
-            `Show all ${items.length} hidden items?`,
-            'Yes',
-            'No'
-        );
-
-        if (answer === 'Yes') {
-            // Clear storage
-            await storage.removeAllHiddenItems();
-            
-            // Clear all workspace exclusions (complete reset)
-            const workspaceFolders = vscode.workspace.workspaceFolders;
-            if (workspaceFolders) {
-                for (const folder of workspaceFolders) {
-                    const config = vscode.workspace.getConfiguration('files', folder.uri);
-                    await config.update('exclude', {}, vscode.ConfigurationTarget.Workspace);
-                }
-            }
-            
-            hiddenItemsProvider.refresh();
-            await vscode.commands.executeCommand('workbench.files.action.refreshFilesExplorer');
-            vscode.window.showInformationMessage(`Showed all ${items.length} hidden items.`);
-        }
-    });
-
 
     const openFileCommand = vscode.commands.registerCommand('hideMe.openFile', async (item: HiddenItem) => {
         if (item && item.path) {
             try {
-                console.log(`Attempting to open hidden file: ${item.path}`);
-                
-                // First, check if it's a file or folder
                 if (item.type === 'folder') {
-                    // For folders, show contents in hidden items tree
-                    vscode.window.showInformationMessage('Folder contents are shown in the Hidden Items panel');
+                    vscode.window.showInformationMessage('Cannot open folder. Use "Reveal in Finder" to access folder contents.');
                     return;
                 }
                 
-                // For files, read the content directly without changing exclusions
+                // Simply open the actual file - it exists, just visually hidden
                 const uri = vscode.Uri.file(item.path);
-                
-                try {
-                    // Read file content directly using fs
-                    const fs = require('fs').promises;
-                    const content = await fs.readFile(item.path, 'utf8');
-                    
-                    // Create a virtual document with the content
-                    const doc = await vscode.workspace.openTextDocument({
-                        content: content,
-                        language: getLanguageId(item.path)
-                    });
-                    
-                    // Show the document in a new editor
-                    const editor = await vscode.window.showTextDocument(doc, {
-                        preview: false,
-                        viewColumn: vscode.ViewColumn.Active
-                    });
-                    
-                    // Set a custom title for the editor
-                    vscode.languages.setTextDocumentLanguage(doc, getLanguageId(item.path));
-                    
-                    // Show info that this is a read-only view of a hidden file
-                    vscode.window.showInformationMessage(`Viewing hidden file: ${item.name} (read-only)`);
-                    
-                    console.log('Hidden file opened successfully');
-                    
-                } catch (error) {
-                    console.error('Error reading file:', error);
-                    vscode.window.showErrorMessage(`Failed to open file: ${error}`);
-                }
+                const document = await vscode.workspace.openTextDocument(uri);
+                await vscode.window.showTextDocument(document, {
+                    preview: false, // Don't use preview mode to avoid graying out
+                    viewColumn: vscode.ViewColumn.Active,
+                    preserveFocus: false // Ensure it gets full focus
+                });
                 
             } catch (error) {
-                console.error('Error in openFile command:', error);
-                vscode.window.showErrorMessage(`Failed to open file: ${error}`);
+                console.error('Error opening file:', error);
+                vscode.window.showErrorMessage(`Failed to open file: ${error instanceof Error ? error.message : String(error)}`);
             }
-        }
-    });
-    
-    // Helper function to determine language ID from file extension
-    function getLanguageId(filePath: string): string {
-        const ext = path.extname(filePath).toLowerCase();
-        const languageMap: { [key: string]: string } = {
-            '.js': 'javascript',
-            '.ts': 'typescript',
-            '.jsx': 'javascriptreact',
-            '.tsx': 'typescriptreact',
-            '.py': 'python',
-            '.java': 'java',
-            '.c': 'c',
-            '.cpp': 'cpp',
-            '.cs': 'csharp',
-            '.go': 'go',
-            '.rs': 'rust',
-            '.php': 'php',
-            '.rb': 'ruby',
-            '.swift': 'swift',
-            '.kt': 'kotlin',
-            '.scala': 'scala',
-            '.r': 'r',
-            '.m': 'objective-c',
-            '.mm': 'objective-cpp',
-            '.html': 'html',
-            '.htm': 'html',
-            '.xml': 'xml',
-            '.css': 'css',
-            '.scss': 'scss',
-            '.sass': 'sass',
-            '.less': 'less',
-            '.json': 'json',
-            '.yaml': 'yaml',
-            '.yml': 'yaml',
-            '.toml': 'toml',
-            '.ini': 'ini',
-            '.cfg': 'ini',
-            '.conf': 'ini',
-            '.sh': 'shellscript',
-            '.bash': 'shellscript',
-            '.zsh': 'shellscript',
-            '.fish': 'shellscript',
-            '.ps1': 'powershell',
-            '.bat': 'bat',
-            '.cmd': 'bat',
-            '.md': 'markdown',
-            '.markdown': 'markdown',
-            '.tex': 'latex',
-            '.bib': 'bibtex',
-            '.sql': 'sql',
-            '.pl': 'perl',
-            '.lua': 'lua',
-            '.vim': 'viml',
-            '.dart': 'dart',
-            '.elm': 'elm',
-            '.clj': 'clojure',
-            '.coffee': 'coffeescript',
-            '.fs': 'fsharp',
-            '.fsx': 'fsharp',
-            '.fsi': 'fsharp',
-            '.ml': 'ocaml',
-            '.mli': 'ocaml',
-            '.pas': 'pascal',
-            '.pp': 'pascal',
-            '.hs': 'haskell',
-            '.lhs': 'haskell',
-            '.jl': 'julia',
-            '.nim': 'nim',
-            '.nims': 'nim',
-            '.vue': 'vue',
-            '.svelte': 'svelte'
-        };
-        
-        return languageMap[ext] || 'plaintext';
-    }
-
-    const revealInExplorerCommand = vscode.commands.registerCommand('hideMe.revealInExplorer', async (item: HiddenItem) => {
-        if (item && item.path) {
-            const uri = vscode.Uri.file(item.path);
-            await vscode.commands.executeCommand('revealInExplorer', uri);
         }
     });
 
@@ -283,44 +136,73 @@ export function activate(context: vscode.ExtensionContext) {
         }
     });
 
+    const unhideAllCommand = vscode.commands.registerCommand('hideMe.unhideAll', async () => {
+        const items = await storage.loadHiddenItems();
+        if (items.length === 0) {
+            vscode.window.showInformationMessage('No hidden items to unhide.');
+            return;
+        }
+
+        const answer = await vscode.window.showWarningMessage(
+            `Unhide all ${items.length} hidden items?`,
+            'Yes',
+            'No'
+        );
+
+        if (answer === 'Yes') {
+            // Clear storage
+            await storage.removeAllHiddenItems();
+            
+            // Clear all workspace exclusions
+            const workspaceFolders = vscode.workspace.workspaceFolders;
+            if (workspaceFolders) {
+                for (const folder of workspaceFolders) {
+                    const config = vscode.workspace.getConfiguration('files', folder.uri);
+                    const currentExclude = config.get<Record<string, boolean>>('exclude') || {};
+                    const newExclude: Record<string, boolean> = {};
+                    
+                    // Keep only non-Hide Me patterns
+                    for (const [pattern, value] of Object.entries(currentExclude)) {
+                        let isHideMePattern = false;
+                        for (const item of items) {
+                            const relativePath = path.relative(folder.uri.fsPath, item.path);
+                            if (relativePath && !relativePath.startsWith('..')) {
+                                if (pattern === relativePath || pattern === `${relativePath}/**`) {
+                                    isHideMePattern = true;
+                                    break;
+                                }
+                            }
+                        }
+                        if (!isHideMePattern) {
+                            newExclude[pattern] = value;
+                        }
+                    }
+                    
+                    await config.update('exclude', newExclude, vscode.ConfigurationTarget.Workspace);
+                }
+            }
+            
+            hiddenItemsProvider.refresh();
+            await vscode.commands.executeCommand('workbench.files.action.refreshFilesExplorer');
+            vscode.window.showInformationMessage(`Unhid all ${items.length} hidden items.`);
+        }
+    });
+
 
     // Store all disposables for proper cleanup
     disposables.push(
         treeView,
         hideItemCommand,
         unhideItemCommand,
-        resetAllCommand,
         openFileCommand,
-        revealInExplorerCommand,
         revealInOSCommand,
         copyPathCommand,
-        copyRelativePathCommand
+        copyRelativePathCommand,
+        unhideAllCommand
     );
 
     context.subscriptions.push(...disposables);
 
-    // Use debounced file watchers for better performance
-    const hiddenItemsCreateWatcher = vscode.workspace.onDidCreateFiles((event) => {
-        debouncedWatcher.handleFileCreated(event.files);
-    });
-
-    const hiddenItemsDeleteWatcher = vscode.workspace.onDidDeleteFiles((event) => {
-        debouncedWatcher.handleFileDeleted(event.files);
-    });
-
-    const hiddenItemsRenameWatcher = vscode.workspace.onDidRenameFiles((event) => {
-        debouncedWatcher.handleFileRenamed(event.files);
-    });
-
-    // Add watchers to disposables array for proper cleanup
-    disposables.push(hiddenItemsCreateWatcher, hiddenItemsDeleteWatcher, hiddenItemsRenameWatcher);
-    context.subscriptions.push(hiddenItemsCreateWatcher, hiddenItemsDeleteWatcher, hiddenItemsRenameWatcher);
-
-    // Start performance monitoring (only in development)
-    if (process.env.NODE_ENV === 'development') {
-        performanceTimer = PerformanceMonitor.startPeriodicLogging(300000); // Every 5 minutes
-        console.log('Performance monitoring enabled');
-    }
 
     vscode.window.showInformationMessage('Hide Me extension activated successfully!');
 }
@@ -339,24 +221,10 @@ export function deactivate() {
     
     disposables = [];
     
-    // Stop performance monitoring
-    if (performanceTimer) {
-        clearInterval(performanceTimer);
-        performanceTimer = undefined;
-    }
-    
-    // Dispose debounced watcher
-    if (debouncedWatcher) {
-        debouncedWatcher.dispose();
-    }
-    
     // Clear global references to prevent memory leaks
     hiddenItemsProvider = undefined as any;
     storage = undefined as any;
     fileHider = undefined as any;
-    decorationProvider = undefined as any;
-    debouncedWatcher = undefined as any;
-    performanceTimer = undefined;
     
     console.log('Hide Me extension deactivated successfully.');
 }
