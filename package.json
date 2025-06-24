@@ -38,14 +38,29 @@
         "icon": "$(eye)"
       },
       {
-        "command": "hideMe.unhideAll",
-        "title": "Unhide All",
+        "command": "hideMe.resetAll",
+        "title": "Reset Hide Me (Show All)",
         "icon": "$(eye)"
       },
       {
-        "command": "hideMe.refresh",
-        "title": "Refresh Hidden Items",
-        "icon": "$(refresh)"
+        "command": "hideMe.openFile",
+        "title": "Open File"
+      },
+      {
+        "command": "hideMe.revealInExplorer",
+        "title": "Reveal in Explorer"
+      },
+      {
+        "command": "hideMe.revealInOS",
+        "title": "Reveal in Finder"
+      },
+      {
+        "command": "hideMe.copyPath",
+        "title": "Copy Path"
+      },
+      {
+        "command": "hideMe.copyRelativePath",
+        "title": "Copy Relative Path"
       }
     ],
     "menus": {
@@ -58,21 +73,41 @@
       ],
       "view/title": [
         {
-          "command": "hideMe.unhideAll",
-          "when": "view == hiddenItems",
-          "group": "navigation"
-        },
-        {
-          "command": "hideMe.refresh",
+          "command": "hideMe.resetAll",
           "when": "view == hiddenItems",
           "group": "navigation"
         }
       ],
       "view/item/context": [
         {
+          "command": "hideMe.openFile",
+          "when": "view == hiddenItems && viewItem == hiddenItem",
+          "group": "navigation@1"
+        },
+        {
+          "command": "hideMe.revealInExplorer",
+          "when": "view == hiddenItems && viewItem == hiddenItem",
+          "group": "navigation@2"
+        },
+        {
+          "command": "hideMe.revealInOS",
+          "when": "view == hiddenItems && viewItem == hiddenItem",
+          "group": "navigation@3"
+        },
+        {
+          "command": "hideMe.copyPath",
+          "when": "view == hiddenItems && viewItem == hiddenItem",
+          "group": "5_cutcopypaste@1"
+        },
+        {
+          "command": "hideMe.copyRelativePath",
+          "when": "view == hiddenItems && viewItem == hiddenItem",
+          "group": "5_cutcopypaste@2"
+        },
+        {
           "command": "hideMe.unhideItem",
-          "when": "view == hiddenItems",
-          "group": "inline"
+          "when": "view == hiddenItems && viewItem == hiddenItem",
+          "group": "7_modification@1"
         }
       ]
     }
@@ -93,9 +128,5 @@
     "eslint": "^8.28.0",
     "typescript": "^4.9.3",
     "@vscode/test-electron": "^2.2.0"
-  },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/maxs-lab-of-things/hide-me"
   }
 }

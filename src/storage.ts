@@ -91,11 +91,10 @@ export class HiddenItemsStorage {
 
         const items = await this.loadHiddenItems();
         
-        const existingIndex = items.findIndex(item => item.path === uri.fsPath);
-        if (existingIndex === -1) {
-            items.push(newItem);
-            await this.saveHiddenItems(items);
-        }
+        // Remove any existing item with the same path to avoid duplicates
+        const filteredItems = items.filter(item => item.path !== uri.fsPath);
+        filteredItems.push(newItem);
+        await this.saveHiddenItems(filteredItems);
     }
 
     async removeHiddenItem(path: string): Promise<void> {
