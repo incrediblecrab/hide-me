@@ -1,0 +1,101 @@
+{
+  "name": "hide-me",
+  "displayName": "Hide Me",
+  "description": "Hide files and folders to reduce visual clutter in VS Code Explorer",
+  "version": "0.1.0",
+  "publisher": "maxs-lab-of-things",
+  "author": {
+    "name": "Max Marquardt",
+    "url": "https://mlot.ai"
+  },
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "categories": ["Other"],
+  "icon": "icon-hide.png",
+  "activationEvents": [],
+  "main": "./out/extension.js",
+  "contributes": {
+    "views": {
+      "explorer": [
+        {
+          "id": "hiddenItems",
+          "name": "Hidden Items",
+          "when": "workspaceFolderCount > 0",
+          "contextualTitle": "Hidden Items"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "hideMe.hideItem",
+        "title": "Hide Me"
+      },
+      {
+        "command": "hideMe.unhideItem",
+        "title": "Unhide",
+        "icon": "$(eye)"
+      },
+      {
+        "command": "hideMe.unhideAll",
+        "title": "Unhide All",
+        "icon": "$(eye)"
+      },
+      {
+        "command": "hideMe.refresh",
+        "title": "Refresh Hidden Items",
+        "icon": "$(refresh)"
+      }
+    ],
+    "menus": {
+      "explorer/context": [
+        {
+          "command": "hideMe.hideItem",
+          "group": "navigation@-1",
+          "when": "workspaceFolderCount > 0"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "hideMe.unhideAll",
+          "when": "view == hiddenItems",
+          "group": "navigation"
+        },
+        {
+          "command": "hideMe.refresh",
+          "when": "view == hiddenItems",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "hideMe.unhideItem",
+          "when": "view == hiddenItems",
+          "group": "inline"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.74.0",
+    "@types/node": "16.x",
+    "@typescript-eslint/eslint-plugin": "^5.45.0",
+    "@typescript-eslint/parser": "^5.45.0",
+    "eslint": "^8.28.0",
+    "typescript": "^4.9.3",
+    "@vscode/test-electron": "^2.2.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/maxs-lab-of-things/hide-me"
+  }
+}
