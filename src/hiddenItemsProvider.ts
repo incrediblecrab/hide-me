@@ -92,6 +92,15 @@ export class HiddenItemsProvider implements vscode.TreeDataProvider<HiddenItem>,
         
         // Enable dragging for this tree item and set context for menus
         item.contextValue = 'hiddenItem';
+        
+        // Add command to open file when clicked (only for files, not folders)
+        if (element.type === 'file') {
+            item.command = {
+                command: 'hideMe.openFile',
+                title: 'Open File',
+                arguments: [element]
+            };
+        }
 
         return item;
     }

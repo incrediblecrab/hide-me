@@ -63,16 +63,9 @@ export class FileHider {
         const lastHash = this.lastConfigHash.get(folder.uri.fsPath);
         
         if (newConfigHash !== lastHash) {
-            // Remove old hide-me patterns
-            for (const pattern in newExclude) {
-                if (pattern.startsWith('hide-me:')) {
-                    delete newExclude[pattern];
-                }
-            }
-            
-            // Add new patterns with prefix to avoid conflicts
+            // Add new patterns directly without prefix
             for (const pattern of hidePatterns) {
-                newExclude[`hide-me:${pattern}`] = true;
+                newExclude[pattern] = true;
             }
             
             await config.update('exclude', newExclude, vscode.ConfigurationTarget.Workspace);

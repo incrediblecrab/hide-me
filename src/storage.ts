@@ -71,23 +71,21 @@ export class HiddenItemsStorage {
             const relativePath = path.relative(workspacePath, resolvedPath);
             
             // Block paths that escape workspace
-            if (relativePath.startsWith('..') || path.isAbsolute(relativePath)) {
+            if (relativePath.startsWith('..')) {
                 SecureLogger.logWarning(`Blocked path traversal attempt: ${filePath}`);
                 return false;
             }
             
-            // Block dangerous path components
+            // Block dangerous path components - check the relativePath instead of filePath
             const dangerousPatterns = [
                 /\.\./,           // Parent directory references
-                /^\//,            // Absolute paths
                 /\0/,             // Null bytes
-                /[<>:"|?*]/,      // Windows invalid chars
                 /[\x00-\x1f]/,    // Control characters
             ];
             
             for (const pattern of dangerousPatterns) {
-                if (pattern.test(filePath)) {
-                    SecureLogger.logWarning(`Blocked dangerous path pattern: ${filePath}`);
+                if (pattern.test(relativePath)) {
+                    SecureLogger.logWarning(`Blocked dangerous path pattern: ${relativePath}`);
                     return false;
                 }
             }
