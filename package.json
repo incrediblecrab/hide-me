@@ -120,6 +120,9 @@
     "lint": "eslint src --ext ts",
     "test": "node ./out/test/runTest.js"
   },
+  "dependencies": {
+    "ajv": "^8.12.0"
+  },
   "devDependencies": {
     "@types/vscode": "^1.74.0",
     "@types/node": "16.x",

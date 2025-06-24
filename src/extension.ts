@@ -4,20 +4,26 @@ import { HiddenItemsProvider } from './hiddenItemsProvider';
 import { HiddenItemsStorage } from './storage';
 import { FileHider } from './fileHider';
 import { FileDecorationProvider } from './fileDecorationProvider';
+import { DebouncedFileWatcher } from './debouncedFileWatcher';
+import { PerformanceMonitor } from './performanceMonitor';
 import { HiddenItem } from './types';
 
 let hiddenItemsProvider: HiddenItemsProvider;
 let storage: HiddenItemsStorage;
 let fileHider: FileHider;
 let decorationProvider: FileDecorationProvider;
+let debouncedWatcher: DebouncedFileWatcher;
+let performanceTimer: NodeJS.Timeout | undefined;
+let disposables: vscode.Disposable[] = [];
 
 export function activate(context: vscode.ExtensionContext) {
     console.log('Hide Me extension is now active!');
 
-    storage = new HiddenItemsStorage();
+    storage = new HiddenItemsStorage(context);
     fileHider = new FileHider();
     hiddenItemsProvider = new HiddenItemsProvider(storage, fileHider);
     decorationProvider = new FileDecorationProvider(storage);
+    debouncedWatcher = new DebouncedFileWatcher(hiddenItemsProvider, storage);
 
     const treeView = vscode.window.createTreeView('hiddenItems', {
         treeDataProvider: hiddenItemsProvider,
@@ -143,7 +149,9 @@ export function activate(context: vscode.ExtensionContext) {
     });
 
 
-    context.subscriptions.push(
+    // Store all disposables for proper cleanup
+    disposables.push(
+        treeView,
         hideItemCommand,
         unhideItemCommand,
         resetAllCommand,
@@ -154,46 +162,66 @@ export function activate(context: vscode.ExtensionContext) {
         copyRelativePathCommand
     );
 
-    const hiddenItemsWatcher = vscode.workspace.onDidCreateFiles(async (event) => {
-        const hiddenItems = await storage.loadHiddenItems();
-        let needsRefresh = false;
+    context.subscriptions.push(...disposables);
 
-        for (const file of event.files) {
-            if (storage.isPathHidden(file.fsPath, hiddenItems)) {
-                needsRefresh = true;
-                break;
-            }
-        }
-
-        if (needsRefresh) {
-            hiddenItemsProvider.refresh();
-        }
+    // Use debounced file watchers for better performance
+    const hiddenItemsCreateWatcher = vscode.workspace.onDidCreateFiles((event) => {
+        debouncedWatcher.handleFileCreated(event.files);
     });
 
-    const hiddenItemsDeleteWatcher = vscode.workspace.onDidDeleteFiles(async (event) => {
-        const hiddenItems = await storage.loadHiddenItems();
-        let itemsToRemove: string[] = [];
-
-        for (const file of event.files) {
-            const item = hiddenItems.find(item => item.path === file.fsPath);
-            if (item) {
-                itemsToRemove.push(item.path);
-            }
-        }
-
-        if (itemsToRemove.length > 0) {
-            for (const path of itemsToRemove) {
-                await storage.removeHiddenItem(path);
-            }
-            hiddenItemsProvider.refresh();
-        }
+    const hiddenItemsDeleteWatcher = vscode.workspace.onDidDeleteFiles((event) => {
+        debouncedWatcher.handleFileDeleted(event.files);
     });
 
-    context.subscriptions.push(hiddenItemsWatcher, hiddenItemsDeleteWatcher);
+    const hiddenItemsRenameWatcher = vscode.workspace.onDidRenameFiles((event) => {
+        debouncedWatcher.handleFileRenamed(event.files);
+    });
+
+    // Add watchers to disposables array for proper cleanup
+    disposables.push(hiddenItemsCreateWatcher, hiddenItemsDeleteWatcher, hiddenItemsRenameWatcher);
+    context.subscriptions.push(hiddenItemsCreateWatcher, hiddenItemsDeleteWatcher, hiddenItemsRenameWatcher);
+
+    // Start performance monitoring (only in development)
+    if (process.env.NODE_ENV === 'development') {
+        performanceTimer = PerformanceMonitor.startPeriodicLogging(300000); // Every 5 minutes
+        console.log('Performance monitoring enabled');
+    }
 
     vscode.window.showInformationMessage('Hide Me extension activated successfully!');
 }
 
 export function deactivate() {
-    console.log('Hide Me extension is now deactivated.');
+    console.log('Hide Me extension is deactivating...');
+    
+    // Dispose all resources
+    disposables.forEach(disposable => {
+        try {
+            disposable.dispose();
+        } catch (error) {
+            console.error('Error disposing resource:', error);
+        }
+    });
+    
+    disposables = [];
+    
+    // Stop performance monitoring
+    if (performanceTimer) {
+        clearInterval(performanceTimer);
+        performanceTimer = undefined;
+    }
+    
+    // Dispose debounced watcher
+    if (debouncedWatcher) {
+        debouncedWatcher.dispose();
+    }
+    
+    // Clear global references to prevent memory leaks
+    hiddenItemsProvider = undefined as any;
+    storage = undefined as any;
+    fileHider = undefined as any;
+    decorationProvider = undefined as any;
+    debouncedWatcher = undefined as any;
+    performanceTimer = undefined;
+    
+    console.log('Hide Me extension deactivated successfully.');
 }
