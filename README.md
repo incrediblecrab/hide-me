@@ -32,6 +32,10 @@ A Visual Studio Code extension that allows you to hide files and folders to redu
 
 Install from the VS Code Marketplace or build from source.
 
+## Author
+
+Max Marquardt | [mlot.ai](https://mlot.ai)
+
 ## License
 
 MIT

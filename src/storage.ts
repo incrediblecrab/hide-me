@@ -164,4 +164,17 @@ export class HiddenItemsStorage {
         return result;
     }
 
+    isPathHidden(targetPath: string, hiddenItems: HiddenItem[]): boolean {
+        for (const item of hiddenItems) {
+            if (item.path === targetPath) {
+                return true;
+            }
+            
+            if (item.children && item.children.includes(targetPath)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
 }
