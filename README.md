@@ -1,6 +1,11 @@
 # Hide Me
 
+![Version](https://img.shields.io/visual-studio-marketplace/v/maxs-lab-of-things.hide-me)
+![MLoT](https://img.shields.io/badge/MLoT-ai-blue)
+
 A Visual Studio Code extension that allows you to hide files and folders to reduce visual clutter in the Explorer view.
+
+![Demo](https://raw.githubusercontent.com/incrediblecrab/Packages-and-Extensions-Media/main/hide-me.gif)
 
 ## Features
 
@@ -32,9 +37,16 @@ A Visual Studio Code extension that allows you to hide files and folders to redu
 
 Install from the VS Code Marketplace or build from source.
 
-## Author
+## Resources
 
-Max Marquardt | [mlot.ai](https://mlot.ai)
+- 📺 [Watch Demo Video](https://youtu.be/8v-zCMh66HM)
+- 🌐 [Visit MLoT Page](https://mlot.ai/hide-me/)
+- 🔒 [Privacy Policy](https://mlot.ai/privacy)
+
+## Publisher
+
+**Max's Lab of Things**
+Visit [mlot.ai](https://mlot.ai/)
 
 ## License
 
