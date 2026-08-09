@@ -5,7 +5,7 @@
 
 A Visual Studio Code extension that allows you to hide files and folders to reduce visual clutter in the Explorer view.
 
-![Demo](https://raw.githubusercontent.com/incrediblecrab/Packages-and-Extensions-Media/main/hide-me.gif)
+![Demo](https://raw.githubusercontent.com/incrediblecrab/Packages-and-Extensions-Media/main/gifs/hide-me.gif)
 
 ## Features
 
