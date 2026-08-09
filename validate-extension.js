@@ -6,14 +6,17 @@ console.log('=== Hide Me Extension Validation ===\n');
 
 // Test 1: Verify no file system modifications
 console.log('Test 1: Verifying file system integrity...');
-const testProjectPath = '/Users/maxmarquardt/Documents/dev/test-project';
+// Override with TEST_PROJECT_PATH to point at a scratch project; defaults to this extension.
+const testProjectPath = process.env.TEST_PROJECT_PATH || __dirname;
 
 function calculateDirectoryChecksum(dirPath) {
     const files = [];
-    
+    const SKIP = new Set(['node_modules', '.git', 'out', 'dist']);
+
     function walkDir(dir) {
         const items = fs.readdirSync(dir);
         for (const item of items) {
+            if (SKIP.has(item)) continue;
             const fullPath = path.join(dir, item);
             const stat = fs.statSync(fullPath);
             
@@ -37,9 +40,14 @@ function calculateDirectoryChecksum(dirPath) {
 }
 
 // Get initial state
-const initialState = calculateDirectoryChecksum(testProjectPath);
-console.log(`✓ Found ${initialState.length} files in test project`);
-console.log('✓ All files are intact and accessible\n');
+if (!fs.existsSync(testProjectPath)) {
+    console.log(`⚠ Skipped: test project not found at ${testProjectPath}`);
+    console.log('  Set TEST_PROJECT_PATH to run this check.\n');
+} else {
+    const initialState = calculateDirectoryChecksum(testProjectPath);
+    console.log(`✓ Found ${initialState.length} files in test project`);
+    console.log('✓ All files are intact and accessible\n');
+}
 
 // Test 2: Check extension file structure
 console.log('Test 2: Checking extension structure...');
