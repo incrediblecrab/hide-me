@@ -2,7 +2,7 @@
   "name": "hide-me",
   "displayName": "Hide Me",
   "description": "Hide files and folders to reduce visual clutter in VS Code Explorer",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "publisher": "maxs-lab-of-things",
   "homepage": "https://mlot.ai",
   "author": {
