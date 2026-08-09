@@ -1,7 +1,38 @@
 node_modules/
 src/
 .vscode/
-.gitignore
 tsconfig.json
 validate-extension.js
 .claude/
+
+# ===== BEGIN standardized (managed; edits here are overwritten) =====
+# AI assistant local state (contains local paths / tool permissions)
+.claude/**
+.cursor/**
+.aider*
+.copilot/**
+
+# Repo + CI metadata, not useful inside a published extension
+.github/**
+.gitignore
+.gitattributes
+.editorconfig
+
+# Dev-only docs and scratch files
+TESTING.md
+DEVELOPMENT.md
+NOTES.md
+todo.md
+TODO.md
+*.local.json
+
+# Test and build tooling
+.vscode-test/**
+.vscode-test-web/**
+coverage/**
+**/*.vsix
+
+# OS noise
+**/.DS_Store
+**/Thumbs.db
+# ===== END standardized =====
