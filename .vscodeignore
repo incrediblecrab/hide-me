@@ -36,3 +36,6 @@ coverage/**
 **/.DS_Store
 **/Thumbs.db
 # ===== END standardized =====
+
+# Agent instructions (outside the managed block)
+CLAUDE.md
