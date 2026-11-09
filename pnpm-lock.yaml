@@ -9,7 +9,7 @@ importers:
   .:
     dependencies:
       ajv:
-        specifier: ^8.12.0
+        specifier: ^8.20.0
         version: 8.20.0
     devDependencies:
       '@types/node':
@@ -19,19 +19,19 @@ importers:
         specifier: ^1.74.0
         version: 1.101.0
       '@typescript-eslint/eslint-plugin':
-        specifier: ^5.45.0
+        specifier: ^5.62.0
         version: 5.62.0(@typescript-eslint/parser@5.62.0(eslint@8.57.1(supports-color@7.2.0))(supports-color@7.2.0)(typescript@4.9.5))(eslint@8.57.1(supports-color@7.2.0))(supports-color@7.2.0)(typescript@4.9.5)
       '@typescript-eslint/parser':
-        specifier: ^5.45.0
+        specifier: ^5.62.0
         version: 5.62.0(eslint@8.57.1(supports-color@7.2.0))(supports-color@7.2.0)(typescript@4.9.5)
       '@vscode/test-electron':
-        specifier: ^2.2.0
+        specifier: ^2.5.2
         version: 2.5.2(supports-color@7.2.0)
       eslint:
-        specifier: ^8.28.0
+        specifier: ^8.57.1
         version: 8.57.1(supports-color@7.2.0)
       typescript:
-        specifier: ^4.9.3
+        specifier: ^4.9.5
         version: 4.9.5
 
 packages:
@@ -325,8 +325,8 @@ packages:
   fast-levenshtein@2.0.6:
     resolution: {integrity: sha512-DCXu6Ifhqcks7TZKY3Hxp3y6qphY5SJZmrWMDrKcERSOXWQdMhU9Ig/PYrzyw/ul9jOIyh0N4M0tbC5hodg8dw==}
 
-  fast-uri@3.1.5:
-    resolution: {integrity: sha512-gHwA1O9LDIcKunMKhObS/HimwtehO1nPUECKAu5TpKgaO19fcWEl4bliWe1jWxVFvIXztJjjQ4L8XQ1EU9f7Jw==}
+  fast-uri@3.1.9:
+    resolution: {integrity: sha512-hS/0Wt3Ya043oKXs0sIxrMpKQITXhMLIrVAKKXi4gozGC9v7YRWVnXIZzjNPTO02M9BdxLCWqK1yRXgNziVyJQ==}
 
   fastq@1.19.1:
     resolution: {integrity: sha512-GwLTyxkCXjXbxqIhTsMI2Nui8huMPtnxg7krajPJAjnEG/iiOS7i+zCtWGZR9G0NBKbXKh6X9m9UIsYX/N6vvQ==}
@@ -879,7 +879,7 @@ snapshots:
   ajv@8.20.0:
     dependencies:
       fast-deep-equal: 3.1.3
-      fast-uri: 3.1.5
+      fast-uri: 3.1.9
       json-schema-traverse: 1.0.0
       require-from-string: 2.0.2
 
@@ -1046,7 +1046,7 @@ snapshots:
 
   fast-levenshtein@2.0.6: {}
 
-  fast-uri@3.1.5: {}
+  fast-uri@3.1.9: {}
 
   fastq@1.19.1:
     dependencies:
