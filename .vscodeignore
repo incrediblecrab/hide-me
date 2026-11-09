@@ -39,3 +39,6 @@ coverage/**
 
 # Agent instructions (outside the managed block)
 CLAUDE.md
+
+# pnpm lockfile (vsce ignores package-lock.json by default, not this)
+pnpm-lock.yaml
